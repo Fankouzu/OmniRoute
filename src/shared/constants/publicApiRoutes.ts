@@ -21,6 +21,7 @@ const PUBLIC_API_ROUTE_PREFIXES = [
 ];
 
 const PUBLIC_READONLY_API_ROUTE_PREFIXES = [
+  "/api/health/live",
   "/api/monitoring/health",
   "/api/settings/require-login",
 ];

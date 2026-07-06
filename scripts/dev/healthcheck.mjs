@@ -2,7 +2,7 @@
 
 /**
  * Docker healthcheck script for OmniRoute.
- * Probes the /api/monitoring/health endpoint on the dashboard port.
+ * Probes the configured health endpoint on the dashboard port.
  * Used by Dockerfile and docker-compose files.
  *
  * #3151 — in some Docker network setups the server binds to a container IP and
@@ -46,9 +46,10 @@ function getContainerInternalIP() {
  * @param {string} host
  * @param {string|number} port
  */
-function healthUrl(host, port) {
+function healthUrl(host, port, path = "/api/monitoring/health") {
   const hostPart = host.includes(":") ? `[${host}]` : host;
-  return `http://${hostPart}:${port}/api/monitoring/health`;
+  const normalizedPath = path.startsWith("/") ? path : `/${path}`;
+  return `http://${hostPart}:${port}${normalizedPath}`;
 }
 
 /**
@@ -62,6 +63,7 @@ function healthUrl(host, port) {
  * @param {string[]} [opts.hosts]
  * @param {typeof fetch} [opts.fetchImpl]
  * @param {number} [opts.timeoutMs]
+ * @param {string} [opts.path]
  * @returns {Promise<string>} the host that succeeded
  */
 export async function probeHealth({
@@ -69,11 +71,12 @@ export async function probeHealth({
   hosts = DEFAULT_HOSTS,
   fetchImpl = fetch,
   timeoutMs = DEFAULT_TIMEOUT_MS,
+  path = "/api/monitoring/health",
 } = {}) {
   let lastError = new Error("no hosts to probe");
   for (const host of hosts) {
     try {
-      const res = await fetchImpl(healthUrl(host, port), {
+      const res = await fetchImpl(healthUrl(host, port, path), {
         signal: AbortSignal.timeout(timeoutMs),
       });
       if (res.ok) return host;
@@ -87,6 +90,7 @@ export async function probeHealth({
 
 async function main() {
   const port = process.env.DASHBOARD_PORT || process.env.PORT || "20128";
+  const path = process.env.OMNIROUTE_HEALTHCHECK_PATH || "/api/monitoring/health";
 
   // Build host list: defaults + detected container bridge IP
   const hosts = [...DEFAULT_HOSTS];
@@ -96,7 +100,7 @@ async function main() {
   }
 
   try {
-    await probeHealth({ port, hosts });
+    await probeHealth({ port, hosts, path });
     process.exit(0);
   } catch (err) {
     // Surface the failure so `docker inspect ... .State.Health[].Output` is

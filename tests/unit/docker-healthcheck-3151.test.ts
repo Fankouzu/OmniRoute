@@ -12,6 +12,7 @@ const { probeHealth } = (await import("../../scripts/dev/healthcheck.mjs")) as {
     hosts?: string[];
     fetchImpl?: typeof fetch;
     timeoutMs?: number;
+    path?: string;
   }) => Promise<string>;
 };
 
@@ -91,4 +92,33 @@ test("probeHealth throws a non-empty error string when every host fails", async 
       return true;
     }
   );
+});
+
+test("probeHealth can probe a custom health path", async () => {
+  const server = http.createServer((req, res) => {
+    if (req.url === "/api/health/live") {
+      res.writeHead(200, { "content-type": "application/json" });
+      res.end(JSON.stringify({ status: "ok" }));
+      return;
+    }
+
+    res.writeHead(404);
+    res.end();
+  });
+  servers.push(server);
+  await new Promise<void>((resolve, reject) => {
+    server.on("error", reject);
+    server.listen(0, "127.0.0.1", () => resolve());
+  });
+
+  const addr = server.address();
+  assert.ok(addr && typeof addr === "object");
+
+  const ok = await probeHealth({
+    port: addr.port,
+    hosts: ["127.0.0.1"],
+    path: "/api/health/live",
+  });
+
+  assert.equal(ok, "127.0.0.1");
 });

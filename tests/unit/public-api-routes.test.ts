@@ -10,6 +10,11 @@ test("isPublicApiRoute allows public management prefixes", () => {
 });
 
 test("isPublicApiRoute allows readonly health and require-login bootstrap routes", () => {
+  assert.equal(isPublicApiRoute("/api/health/live", "GET"), true);
+  assert.equal(isPublicApiRoute("/api/health/live", "HEAD"), true);
+  assert.equal(isPublicApiRoute("/api/health/live", "OPTIONS"), true);
+  assert.equal(isPublicApiRoute("/api/health/live", "POST"), false);
+
   assert.equal(isPublicApiRoute("/api/monitoring/health", "GET"), true);
   assert.equal(isPublicApiRoute("/api/monitoring/health", "HEAD"), true);
   assert.equal(isPublicApiRoute("/api/monitoring/health", "OPTIONS"), true);
